@@ -3,11 +3,12 @@
 // bisects batches on timeout; resumable via checkpoint.
 // Output: .cache/memberships.ndjson
 // Env: LIMIT_CLUBS=200 to run on a sample.
-import { sparql, qid, year, SparqlTimeoutError } from './lib/wdqs.ts'
+import { sparql, qid, year, SparqlTimeoutError, ENDPOINT_NAME } from './lib/wdqs.ts'
 import { ensureCacheDir, appendNdjson, readNdjson, readJson, writeJson } from './lib/cache.ts'
 import type { ClubRow } from './fetch-clubs.ts'
 
-const BATCH_SIZE = 25
+const QLEVER = ENDPOINT_NAME === 'qlever'
+const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? (QLEVER ? 250 : 25))
 const LABEL_LANGS = 'en,mul,es,pt,de,fr,it,tr,nl,ru,ja'
 
 export interface MembershipRow {
@@ -20,9 +21,15 @@ export interface MembershipRow {
 }
 
 async function fetchBatch(clubIds: string[]): Promise<MembershipRow[]> {
+  // QLever has no wikibase:label service — fetch en/mul labels as OPTIONALs
+  const labelClause = QLEVER
+    ? `OPTIONAL { ?player rdfs:label ?len . FILTER(LANG(?len) = "en") }
+       OPTIONAL { ?player rdfs:label ?lmul . FILTER(LANG(?lmul) = "mul") }`
+    : `SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGS}". }`
+  const labelVars = QLEVER ? '?len ?lmul' : '?playerLabel'
   try {
     const bindings = await sparql(`
-      SELECT ?club ?player ?playerLabel ?start ?end ?birth WHERE {
+      SELECT ?club ?player ${labelVars} ?start ?end ?birth WHERE {
         VALUES ?club { ${clubIds.map((id) => `wd:${id}`).join(' ')} }
         ?player p:P54 ?st .
         ?st ps:P54 ?club .
@@ -31,13 +38,13 @@ async function fetchBatch(clubIds: string[]): Promise<MembershipRow[]> {
         OPTIONAL { ?st pq:P580 ?start }
         OPTIONAL { ?st pq:P582 ?end }
         OPTIONAL { ?player wdt:P569 ?birth }
-        SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGS}". }
+        ${labelClause}
       }
     `)
     return bindings.map((b) => ({
       club: qid(b.club!.value),
       player: qid(b.player!.value),
-      name: b.playerLabel?.value ?? '',
+      name: (QLEVER ? (b.len?.value ?? b.lmul?.value) : b.playerLabel?.value) ?? '',
       start: year(b.start?.value),
       end: year(b.end?.value),
       birth: year(b.birth?.value),

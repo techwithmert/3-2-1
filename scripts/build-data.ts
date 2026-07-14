@@ -38,6 +38,7 @@ function main() {
   const perClub = new Map<string, Map<string, PlayerEntry>>()
   for (const m of memberships) {
     if (!clubs.has(m.club)) continue
+    if (m.name === '' || /^Q\d+$/.test(m.name)) continue // no usable label
     let players = perClub.get(m.club)
     if (!players) perClub.set(m.club, (players = new Map()))
     const existing = players.get(m.player)

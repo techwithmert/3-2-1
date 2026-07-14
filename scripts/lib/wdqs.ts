@@ -6,7 +6,8 @@ const ENDPOINTS: Record<string, string> = {
   qlever: 'https://qlever.cs.uni-freiburg.de/api/wikidata',
 }
 
-const ENDPOINT = ENDPOINTS[process.env.SPARQL_ENDPOINT ?? 'wdqs']
+export const ENDPOINT_NAME = process.env.SPARQL_ENDPOINT ?? 'wdqs'
+const ENDPOINT = ENDPOINTS[ENDPOINT_NAME]
 if (!ENDPOINT) {
   throw new Error(`Unknown SPARQL_ENDPOINT "${process.env.SPARQL_ENDPOINT}" (use: wdqs | qlever)`)
 }
@@ -25,6 +26,19 @@ export interface SparqlBinding {
 
 export class SparqlTimeoutError extends Error {}
 
+// WDQS auto-registers these; QLever requires them spelled out.
+const PREFIXES = `
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX pq: <http://www.wikidata.org/prop/qualifier/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
+`
+
 /** Run a SPARQL query. Throttled to 1 rps; retries on 429/5xx; throws SparqlTimeoutError on query timeout. */
 export async function sparql(query: string): Promise<SparqlBinding[]> {
   const backoffs = [2000, 8000, 32000]
@@ -42,7 +56,7 @@ export async function sparql(query: string): Promise<SparqlBinding[]> {
           'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/sparql-results+json',
         },
-        body: new URLSearchParams({ query }),
+        body: new URLSearchParams({ query: PREFIXES + query }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       })
     } catch (err) {
