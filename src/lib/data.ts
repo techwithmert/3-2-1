@@ -75,7 +75,13 @@ export function intersect(a: PlayerStint[], b: PlayerStint[]): CommonPlayer[] {
       common.push({ qid: pb.qid, name: pa.name, birth: pa.birth ?? pb.birth, a: pa, b: pb, key: normalize(pa.name) })
     }
   }
-  // most recent players first — they're the likeliest answers mid-game
-  common.sort((x, y) => (y.b.end ?? y.a.end ?? 9999) - (x.b.end ?? x.a.end ?? 9999))
+  // most recent players first — they're the likeliest answers mid-game.
+  // end=null with a start means "still there" (very recent); no years at all
+  // means "unknown" and goes last.
+  const recency = (p: CommonPlayer) =>
+    Math.max(
+      ...[p.a, p.b].map((s) => s.end ?? (s.start !== null ? 9999 : 0))
+    )
+  common.sort((x, y) => recency(y) - recency(x))
   return common
 }

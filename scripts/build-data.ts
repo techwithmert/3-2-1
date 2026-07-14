@@ -30,6 +30,13 @@ function main() {
     console.error('Missing cache data — run data:clubs and data:players first.')
     process.exit(1)
   }
+  // multisport club items attach handballers, basketballers, … via P54 too;
+  // keep only people with a football occupation (see fetch-footballers.ts)
+  const footballers = new Set(readNdjson<string>('footballers.ndjson'))
+  if (footballers.size === 0) {
+    console.error('Missing footballers.ndjson — run: tsx scripts/fetch-footballers.ts')
+    process.exit(1)
+  }
 
   const clubs = new Map<string, ClubRow>()
   for (const row of clubRows) if (!clubs.has(row.qid)) clubs.set(row.qid, row)
@@ -39,6 +46,7 @@ function main() {
   for (const m of memberships) {
     if (!clubs.has(m.club)) continue
     if (m.name === '' || /^Q\d+$/.test(m.name)) continue // no usable label
+    if (!footballers.has(m.player)) continue
     let players = perClub.get(m.club)
     if (!players) perClub.set(m.club, (players = new Map()))
     const existing = players.get(m.player)

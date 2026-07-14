@@ -7,19 +7,19 @@ const MAX_SUGGESTIONS = 20
 function rank(clubs: Club[], query: string): Club[] {
   const q = normalize(query.trim())
   if (q === '') return []
-  const prefix: Club[] = []
+  // prefix and word-start rank together: typing "barcelona" must put
+  // FC Barcelona (word-start, huge) above Barcelona S.C. (prefix, small)
   const wordStart: Club[] = []
   const substring: Club[] = []
   for (const club of clubs) {
     const at = club.key.indexOf(q)
     if (at === -1) continue
-    if (at === 0) prefix.push(club)
-    else if (club.key[at - 1] === ' ') wordStart.push(club)
+    if (at === 0 || club.key[at - 1] === ' ') wordStart.push(club)
     else substring.push(club)
   }
   // clubs.json is sorted by player count desc, so each bucket is already
   // ordered best-first
-  return [...prefix, ...wordStart, ...substring].slice(0, MAX_SUGGESTIONS)
+  return [...wordStart, ...substring].slice(0, MAX_SUGGESTIONS)
 }
 
 interface Props {
