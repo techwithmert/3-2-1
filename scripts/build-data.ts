@@ -10,6 +10,12 @@ import type { MembershipRow } from './fetch-memberships.ts'
 
 const OUT_DIR = path.join(import.meta.dirname, '..', 'public', 'data')
 
+// "Beşiktaş J.K. (Football)" → "Beşiktaş J.K." — drop pure sport-disambiguation
+// suffixes, but keep meaningful ones like "(women)".
+function cleanLabel(label: string): string {
+  return label.replace(/\s*\((association )?football\)$/i, '')
+}
+
 interface PlayerEntry {
   name: string
   start: number | null
@@ -70,7 +76,7 @@ function main() {
     fs.writeFileSync(path.join(OUT_DIR, 'c', `${clubQid}.json`), file)
     totalBytes += file.length
     if (file.length > largest.bytes) largest = { qid: clubQid, bytes: file.length }
-    index.push([clubQid, club.label, club.country, players.size])
+    index.push([clubQid, cleanLabel(club.label), club.country, players.size])
   }
 
   index.sort((a, b) => b[3] - a[3])
