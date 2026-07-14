@@ -43,8 +43,9 @@ npm run data:players` crawls only the 200 most notable clubs (sample runs).
 
 ## Deploy
 
-Static output — any static host works. For Vercel: connect the repo, framework
-preset "Vite", done. `vercel.json` adds cache headers for `/data/*`.
+Static output — any static host works. Pushing to `main` deploys to GitHub Pages
+via `.github/workflows/deploy.yml`. For Vercel instead: connect the repo,
+framework preset "Vite", done — `vercel.json` adds cache headers for `/data/*`.
 
 ## Notes
 
