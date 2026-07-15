@@ -1,12 +1,14 @@
-// SPARQL client for Wikidata Query Service (or QLever as a fallback endpoint).
-// WDQS etiquette: identify yourself, 1 request at a time, back off on 429/5xx.
+// SPARQL client for QLever (default) or the Wikidata Query Service.
+// QLever has no 60s query cap, which the club enumeration needs; WDQS is kept
+// as a fallback. Etiquette either way: identify yourself, one request at a
+// time, back off on 429/5xx.
 
 const ENDPOINTS: Record<string, string> = {
   wdqs: 'https://query.wikidata.org/sparql',
-  qlever: 'https://qlever.cs.uni-freiburg.de/api/wikidata',
+  qlever: 'https://qlever.dev/api/wikidata',
 }
 
-export const ENDPOINT_NAME = process.env.SPARQL_ENDPOINT ?? 'wdqs'
+export const ENDPOINT_NAME = process.env.SPARQL_ENDPOINT ?? 'qlever'
 const ENDPOINT = ENDPOINTS[ENDPOINT_NAME]
 if (!ENDPOINT) {
   throw new Error(`Unknown SPARQL_ENDPOINT "${process.env.SPARQL_ENDPOINT}" (use: wdqs | qlever)`)
@@ -41,7 +43,9 @@ PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
 
 /** Run a SPARQL query. Throttled to 1 rps; retries on 429/5xx; throws SparqlTimeoutError on query timeout. */
 export async function sparql(query: string): Promise<SparqlBinding[]> {
-  const backoffs = [2000, 8000, 32000]
+  // QLever throws intermittent 502s under a sustained crawl and can take a
+  // while to come back, so be patient — a full re-crawl is ~25k clubs.
+  const backoffs = [2000, 5000, 15000, 45000, 90000, 120000]
   for (let attempt = 0; ; attempt++) {
     const wait = lastRequestAt + MIN_INTERVAL_MS - Date.now()
     if (wait > 0) await sleep(wait)

@@ -315,6 +315,57 @@ body {
   max-width: 40ch;
 }
 
+/* near-miss: matched only through a reserve/youth side */
+.near-miss {
+  width: 100%;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed #ffc73340;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.near-miss-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.near-miss ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.near-miss li {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.near-miss li strong {
+  color: var(--card-yellow);
+}
+
+.near-miss-names {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.near-miss-rule {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
 /* ---- misc ---- */
 .hint {
   margin-top: 20px;

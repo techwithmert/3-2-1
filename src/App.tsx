@@ -1,8 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { ClubCombobox } from './components/ClubCombobox'
 import { ResultsList } from './components/ResultsList'
-import { intersect, loadClubIndex, loadClubPlayers } from './lib/data'
-import type { Club, PlayerStint } from './lib/data'
+import { findFamilyMatches, intersect, loadClubIndex, loadClubPlayers } from './lib/data'
+import type { Club, ClubIndex, FamilyMatch, PlayerStint } from './lib/data'
 import { normalize } from './lib/normalize'
 
 function useClubPlayers(club: Club | null) {
@@ -27,7 +27,7 @@ function useClubPlayers(club: Club | null) {
 }
 
 export default function App() {
-  const [index, setIndex] = useState<{ clubs: Club[]; generated: string } | null>(null)
+  const [index, setIndex] = useState<ClubIndex | null>(null)
   const [indexError, setIndexError] = useState<string | null>(null)
   const [clubA, setClubA] = useState<Club | null>(null)
   const [clubB, setClubB] = useState<Club | null>(null)
@@ -59,6 +59,21 @@ export default function App() {
     for (const p of common) (seen.has(p.key) ? dupes : seen).add(p.key)
     return dupes
   }, [common])
+
+  // near-misses through reserve sides, looked up only when nothing matched
+  const [family, setFamily] = useState<FamilyMatch[] | null>(null)
+  useEffect(() => {
+    setFamily(null)
+    if (!index || !clubA || !clubB || common === null || common.length > 0) return
+    let cancelled = false
+    findFamilyMatches(index, clubA, clubB).then(
+      (found) => !cancelled && setFamily(found),
+      () => {}
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [index, clubA, clubB, common])
 
   const bothPicked = clubA !== null && clubB !== null
   const loading = bothPicked && (a.loading || b.loading)
@@ -108,6 +123,27 @@ export default function App() {
                     Not a single player in the books for {clubA.label} and {clubB.label} — if
                     someone named one, that’s a bluff.
                   </p>
+                  {family && family.length > 0 && (
+                    <div className="near-miss">
+                      <span className="near-miss-title">Unless you count the youth teams</span>
+                      <ul>
+                        {family.map((m) => (
+                          <li key={`${m.clubA.qid}-${m.clubB.qid}`}>
+                            <strong>{m.players.length}</strong> via {m.clubA.label} ·{' '}
+                            {m.clubB.label}
+                            <span className="near-miss-names">
+                              {m.players
+                                .slice(0, 3)
+                                .map((p) => p.name)
+                                .join(', ')}
+                              {m.players.length > 3 ? '…' : ''}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <span className="near-miss-rule">House rules decide.</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>

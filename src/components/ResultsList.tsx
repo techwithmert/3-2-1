@@ -10,7 +10,8 @@ function years(p: PlayerStint): string | null {
 
 function stint(club: Club, p: PlayerStint): string {
   const y = years(p)
-  return y ? `${club.label} ${y}` : club.label
+  const base = y ? `${club.label} ${y}` : club.label
+  return p.loan ? `${base} (loan)` : base
 }
 
 interface Props {

@@ -1,15 +1,15 @@
-// Stage B: for every club from Stage A, fetch notable players (any Wikipedia
-// sitelink) with membership year qualifiers. Batches clubs into VALUES queries;
-// bisects batches on timeout; resumable via checkpoint.
+// Stage B: for every club from Stage A, fetch its footballers with membership
+// year qualifiers and the loan flag. Batches clubs into VALUES queries; bisects
+// batches on timeout; resumable via checkpoint.
 // Output: .cache/memberships.ndjson
-// Env: LIMIT_CLUBS=200 to run on a sample.
+// Env: LIMIT_CLUBS=200 to run on a sample, BATCH_SIZE to override.
 import { sparql, qid, year, SparqlTimeoutError, ENDPOINT_NAME } from './lib/wdqs.ts'
 import { ensureCacheDir, appendNdjson, readNdjson, readJson, writeJson } from './lib/cache.ts'
 import type { ClubRow } from './fetch-clubs.ts'
 
-const QLEVER = ENDPOINT_NAME === 'qlever'
-const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? (QLEVER ? 250 : 25))
-const LABEL_LANGS = 'en,mul,es,pt,de,fr,it,tr,nl,ru,ja'
+const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? (ENDPOINT_NAME === 'qlever' ? 250 : 25))
+const FOOTBALL_OCCUPATIONS = ['Q937857', 'Q628099', 'Q23905045'] // footballer, manager, futsal player
+const LOAN = 'Q2914547' // P1642 "acquisition transaction" = loan
 
 export interface MembershipRow {
   club: string
@@ -18,36 +18,36 @@ export interface MembershipRow {
   start: number | null
   end: number | null
   birth: number | null
+  loan: boolean
 }
 
 async function fetchBatch(clubIds: string[]): Promise<MembershipRow[]> {
-  // QLever has no wikibase:label service — fetch en/mul labels as OPTIONALs
-  const labelClause = QLEVER
-    ? `OPTIONAL { ?player rdfs:label ?len . FILTER(LANG(?len) = "en") }
-       OPTIONAL { ?player rdfs:label ?lmul . FILTER(LANG(?lmul) = "mul") }`
-    : `SERVICE wikibase:label { bd:serviceParam wikibase:language "${LABEL_LANGS}". }`
-  const labelVars = QLEVER ? '?len ?lmul' : '?playerLabel'
   try {
+    // plain rdfs:label rather than SERVICE wikibase:label — QLever has no label
+    // service, and en->mul works on both endpoints
     const bindings = await sparql(`
-      SELECT ?club ?player ${labelVars} ?start ?end ?birth WHERE {
+      SELECT ?club ?player ?len ?lmul ?start ?end ?birth ?acq WHERE {
         VALUES ?club { ${clubIds.map((id) => `wd:${id}`).join(' ')} }
         ?player p:P54 ?st .
         ?st ps:P54 ?club .
-        ?player wdt:P31 wd:Q5 .
-        ?player wikibase:sitelinks ?psl . FILTER(?psl > 0)
+        ?player wdt:P31 wd:Q5 ; wdt:P106 ?occ .
+        VALUES ?occ { ${FOOTBALL_OCCUPATIONS.map((q) => `wd:${q}`).join(' ')} }
         OPTIONAL { ?st pq:P580 ?start }
         OPTIONAL { ?st pq:P582 ?end }
+        OPTIONAL { ?st pq:P1642 ?acq }
         OPTIONAL { ?player wdt:P569 ?birth }
-        ${labelClause}
+        OPTIONAL { ?player rdfs:label ?len . FILTER(LANG(?len) = "en") }
+        OPTIONAL { ?player rdfs:label ?lmul . FILTER(LANG(?lmul) = "mul") }
       }
     `)
     return bindings.map((b) => ({
       club: qid(b.club!.value),
       player: qid(b.player!.value),
-      name: (QLEVER ? (b.len?.value ?? b.lmul?.value) : b.playerLabel?.value) ?? '',
+      name: b.len?.value ?? b.lmul?.value ?? '',
       start: year(b.start?.value),
       end: year(b.end?.value),
       birth: year(b.birth?.value),
+      loan: b.acq?.value ? qid(b.acq.value) === LOAN : false,
     }))
   } catch (err) {
     if (err instanceof SparqlTimeoutError && clubIds.length > 1) {
@@ -69,10 +69,7 @@ async function main() {
     console.error('No clubs found — run `npm run data:clubs` first.')
     process.exit(1)
   }
-  // dedupe (clubs can appear under several classes), most-notable first
-  const byQid = new Map<string, ClubRow>()
-  for (const row of clubRows) if (!byQid.has(row.qid)) byQid.set(row.qid, row)
-  let clubs = [...byQid.values()].sort((a, b) => b.sitelinks - a.sitelinks)
+  let clubs = clubRows
   if (process.env.LIMIT_CLUBS) clubs = clubs.slice(0, Number(process.env.LIMIT_CLUBS))
 
   const checkpoint = readJson<{ done: string[] }>('memberships-checkpoint.json', { done: [] })
