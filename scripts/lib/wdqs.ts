@@ -39,6 +39,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX wikibase: <http://wikiba.se/ontology#>
 PREFIX bd: <http://www.bigdata.com/rdf#>
 PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
+PREFIX schema: <http://schema.org/>
 `
 
 /** Run a SPARQL query. Throttled to 1 rps; retries on 429/5xx; throws SparqlTimeoutError on query timeout. */

@@ -7,6 +7,7 @@ import path from 'node:path'
 import { readNdjson } from './lib/cache.ts'
 import type { ClubRow } from './fetch-clubs.ts'
 import type { MembershipRow } from './fetch-memberships.ts'
+import type { WpCareerRow } from './fetch-wikipedia-careers.ts'
 
 const OUT_DIR = path.join(import.meta.dirname, '..', 'public', 'data')
 
@@ -24,6 +25,7 @@ interface PlayerEntry {
   end: number | null
   birth: number | null
   loan: boolean // only stays true if every stint at this club was a loan
+  source: 'wikidata' | 'wikipedia'
 }
 
 const MENS_FOOTBALL_TEAM = 'Q103229495' // the marker on a multisport club's football section
@@ -81,39 +83,76 @@ function main() {
     process.exit(1)
   }
 
+  // optional — the pipeline still builds without a Wikipedia pass
+  const wpCareers = readNdjson<WpCareerRow>('wp-careers.ndjson')
+
   const clubs = new Map<string, ClubRow>()
   for (const row of clubRows) if (!clubs.has(row.qid)) clubs.set(row.qid, row)
 
   const mergeInto = buildMergeMap(clubs)
   const canonical = (q: string) => mergeInto.get(q) ?? q
 
+  // Wikipedia rows carry no birth year, so take it from any Wikidata statement
+  // about the same player.
+  const birthYears = new Map<string, number>()
+  for (const m of memberships) {
+    if (m.birth !== null && !birthYears.has(m.player)) birthYears.set(m.player, m.birth)
+  }
+
   // club -> player -> merged entry (multiple stints collapse to min-start/max-end)
   const perClub = new Map<string, Map<string, PlayerEntry>>()
-  for (const m of memberships) {
-    const name = playerLabels.get(m.player)
-    if (!name) continue // no label in any language we asked for
-    const clubQid = canonical(m.club)
-    if (!clubs.has(clubQid)) continue
+
+  function addStint(
+    rawClub: string,
+    player: string,
+    stint: { start: number | null; end: number | null; loan: boolean },
+    source: 'wikidata' | 'wikipedia'
+  ): 'new' | 'merged' | 'skipped' {
+    const name = playerLabels.get(player)
+    if (!name) return 'skipped' // no label in any language we asked for
+    const clubQid = canonical(rawClub)
+    if (!clubs.has(clubQid)) return 'skipped'
+
     let players = perClub.get(clubQid)
     if (!players) perClub.set(clubQid, (players = new Map()))
-    const existing = players.get(m.player)
+    const existing = players.get(player)
     if (!existing) {
-      players.set(m.player, {
+      players.set(player, {
         name,
-        start: m.start,
-        end: m.end,
-        birth: m.birth,
-        loan: m.loan,
+        start: stint.start,
+        end: stint.end,
+        birth: birthYears.get(player) ?? null,
+        loan: stint.loan,
+        source,
       })
-    } else {
-      if (m.start !== null && (existing.start === null || m.start < existing.start))
-        existing.start = m.start
-      if (m.end !== null && (existing.end === null || m.end > existing.end)) existing.end = m.end
-      if (m.birth !== null && (existing.birth === null || m.birth < existing.birth))
-        existing.birth = m.birth
-      // a loan-then-permanent spell is not "on loan"
-      if (!m.loan) existing.loan = false
+      return 'new'
     }
+    // Wikidata is authoritative where the two sources overlap: Wikipedia only
+    // fills in years Wikidata left blank, and never flips a loan flag.
+    if (existing.source === 'wikidata' && source === 'wikipedia') {
+      if (existing.start === null) existing.start = stint.start
+      if (existing.end === null) existing.end = stint.end
+      return 'merged'
+    }
+    if (stint.start !== null && (existing.start === null || stint.start < existing.start))
+      existing.start = stint.start
+    if (stint.end !== null && (existing.end === null || stint.end > existing.end))
+      existing.end = stint.end
+    // a loan-then-permanent spell is not "on loan"
+    if (!stint.loan) existing.loan = false
+    return 'merged'
+  }
+
+  for (const m of memberships) {
+    addStint(m.club, m.player, m, 'wikidata')
+  }
+
+  // Wikipedia second, so Wikidata always wins a conflict. This is what catches
+  // transfers Wikidata hasn't recorded yet (a human has to add each statement,
+  // while Wikipedia is edited within hours of the news).
+  let wpAdded = 0
+  for (const w of wpCareers) {
+    if (addStint(w.club, w.player, w, 'wikipedia') === 'new') wpAdded++
   }
 
   fs.rmSync(OUT_DIR, { recursive: true, force: true })
@@ -124,6 +163,7 @@ function main() {
   let largest = { qid: '', bytes: 0 }
   const playerIds = new Set<string>()
   let loanStints = 0
+  let wpOnlyShipped = 0
 
   for (const [clubQid, players] of perClub) {
     const club = clubs.get(clubQid)!
@@ -134,6 +174,7 @@ function main() {
       .map(([pid, p]) => {
         playerIds.add(pid)
         if (p.loan) loanStints++
+        if (p.source === 'wikipedia') wpOnlyShipped++
         return [pid, p.name, p.start, p.end, p.birth, p.loan ? 1 : 0] as const
       })
       .sort((a, b) => (b[3] ?? 9999) - (a[3] ?? 9999)) // recent players first
@@ -164,6 +205,13 @@ function main() {
   console.log(`players: ${playerIds.size} distinct`)
   console.log(`loan stints: ${loanStints}`)
   console.log(`reserve sides linked to a parent: ${index.filter((c) => c[4]).length}`)
+  if (wpCareers.length > 0) {
+    console.log(
+      `wikipedia: ${wpCareers.length} career rows read, ${wpAdded} club spells Wikidata was missing, ${wpOnlyShipped} shipped`
+    )
+  } else {
+    console.log('wikipedia: no wp-careers.ndjson — Wikidata only (run npm run data:wikipedia)')
+  }
   console.log(`per-club files: ${(totalBytes / 1024 / 1024).toFixed(1)} MB total`)
   console.log(`largest: ${largest.qid} (${(largest.bytes / 1024).toFixed(0)} KB)`)
 
