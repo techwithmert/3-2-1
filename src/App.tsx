@@ -1,6 +1,19 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { ClubCombobox } from './components/ClubCombobox'
 import { ResultsList } from './components/ResultsList'
+import {
+  AWAY_KIT,
+  BALL,
+  BALL_KIT,
+  CLOUD,
+  CLOUD_KIT,
+  HOME_KIT,
+  PLAYER_AWAY,
+  PLAYER_HOME,
+  PixelSprite,
+  SUN,
+  SUN_KIT,
+} from './components/PixelSprite'
 import { findFamilyMatches, intersect, loadClubIndex, loadClubPlayers } from './lib/data'
 import type { Club, ClubIndex, FamilyMatch, PlayerStint } from './lib/data'
 import { normalize } from './lib/normalize'
@@ -81,6 +94,17 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="scene" aria-hidden="true">
+        <PixelSprite sprite={SUN} palette={SUN_KIT} className="sun" />
+        <PixelSprite sprite={CLOUD} palette={CLOUD_KIT} className="cloud cloud-1" />
+        <PixelSprite sprite={CLOUD} palette={CLOUD_KIT} className="cloud cloud-2" />
+        <PixelSprite sprite={CLOUD} palette={CLOUD_KIT} className="cloud cloud-3" />
+        <div className="pitch">
+          <div className="halfway" />
+          <div className="centre-circle" />
+        </div>
+      </div>
+
       <header className="masthead">
         <h1 className="wordmark">
           <span>3</span>
@@ -97,8 +121,13 @@ export default function App() {
         <main>
           <section className="fixture" aria-label="Pick two clubs">
             <ClubCombobox clubs={index.clubs} side="a" value={clubA} onChange={setClubA} />
-            <div className="vs" aria-hidden="true">
-              vs
+            <div className="kickoff" aria-hidden="true">
+              <PixelSprite sprite={PLAYER_HOME} palette={HOME_KIT} className="baller" />
+              <div className="vs-stack">
+                <PixelSprite sprite={BALL} palette={BALL_KIT} className="ball" />
+                <div className="vs">vs</div>
+              </div>
+              <PixelSprite sprite={PLAYER_AWAY} palette={AWAY_KIT} className="baller" />
             </div>
             <ClubCombobox clubs={index.clubs} side="b" value={clubB} onChange={setClubB} />
           </section>

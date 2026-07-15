@@ -1,15 +1,20 @@
-/* 3-2-1 — stadium-at-night palette, fixture-card layout */
+/* 3-2-1 — sunny-day pixel pitch.
+   The scene is decoration; everything you actually play with sits on solid
+   cream panels with chunky ink borders so the grass never fights the text. */
 :root {
-  --bg: #0a120d;
-  --surface: #121c15;
-  --surface-2: #17241b;
-  --line: #24352a;
-  --text: #eef3ec;
-  --muted: #8ca394;
-  --pitch: #5be389;
-  --pitch-dim: #2c5e40;
+  --sky-top: #6cbdf0;
+  --sky-low: #cbeeff;
+  --grass: #57b45a;
+  --grass-dark: #4aa04d;
+  --chalk: #f4fff4;
+  --ink: #14261a;
+  --ink-soft: #4d6353;
+  --panel: #fffdf5;
+  --panel-alt: #f4f7ec;
+  --pitch-green: #1f7a34;
   --card-yellow: #ffc733;
-  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --shadow: rgba(20, 38, 26, 0.28);
+  --font-pixel: 'Silkscreen', 'Courier New', monospace;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
@@ -21,22 +26,100 @@
 }
 
 html {
-  background: var(--bg);
+  background: var(--sky-low);
 }
 
 body {
   font-family: var(--font-body);
-  color: var(--text);
-  background:
-    radial-gradient(120% 60% at 50% 0%, #10231708 0%, transparent 60%),
-    repeating-linear-gradient(180deg, var(--bg) 0px, var(--bg) 90px, #0c1510 90px, #0c1510 180px);
+  color: var(--ink);
   min-height: 100dvh;
+}
+
+/* ---- the pitch behind everything ---- */
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-low) 100%);
+}
+
+.sun {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 0 18px #ffd84dcc);
+}
+
+.cloud {
+  position: absolute;
+  width: 84px;
+  height: 35px;
+  opacity: 0.92;
+}
+
+.cloud-1 {
+  top: 40px;
+  left: -10px;
+}
+
+.cloud-2 {
+  top: 96px;
+  left: 58%;
+  width: 64px;
+  opacity: 0.8;
+}
+
+.cloud-3 {
+  top: 150px;
+  left: 18%;
+  width: 46px;
+  opacity: 0.66;
+}
+
+/* grass: mown stripes, chalk touchline along the top */
+.pitch {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 74%;
+  border-top: 5px solid var(--chalk);
+  background: repeating-linear-gradient(
+    90deg,
+    var(--grass) 0 34px,
+    var(--grass-dark) 34px 68px
+  );
+}
+
+.halfway {
+  position: absolute;
+  top: 22%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--chalk);
+  opacity: 0.85;
+}
+
+.centre-circle {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  width: 190px;
+  height: 190px;
+  transform: translate(-50%, -50%);
+  border: 4px solid var(--chalk);
+  border-radius: 50%;
+  opacity: 0.85;
 }
 
 .app {
   max-width: 560px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 20px 16px 44px;
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
@@ -45,66 +128,95 @@ body {
 /* ---- masthead ---- */
 .masthead {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
+/* flex, not inline-flex: the tagline is inline-block and would otherwise ride
+   up alongside the numbers once the viewport is wide enough to fit both */
 .wordmark {
-  display: inline-flex;
-  gap: 6px;
-  font-family: var(--font-display);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
   font-weight: 700;
-  font-size: 40px;
+  font-size: 26px;
   line-height: 1;
 }
 
+/* shirt numbers on a washing line */
 .wordmark span {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 58px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  /* shirt-number look */
-  color: var(--pitch);
-  text-shadow: 0 0 18px #5be38933;
+  width: 50px;
+  height: 56px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow);
 }
 
 .wordmark span:nth-child(3) {
-  background: var(--pitch);
-  color: var(--bg);
-  text-shadow: none;
+  color: var(--panel);
+  background: var(--pitch-green);
 }
 
 .tagline {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 14px;
-  letter-spacing: 0.02em;
+  margin-top: 12px;
+  display: inline-block;
+  padding: 4px 10px;
+  background: #ffffffcc;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* ---- fixture card ---- */
 .fixture {
-  position: relative;
   display: grid;
   gap: 10px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow);
+  padding: 14px;
+}
+
+/* two players squaring up over the ball — the 3-2-1 moment */
+.kickoff {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* exact integer multiples of the sprite grids (14x18 at 3x, 8x8 at 2x, and so
+   on) so pixels never land on half a screen pixel */
+.baller {
+  width: 42px;
+  height: 48px;
+  flex: none;
+}
+
+.vs-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ball {
+  width: 16px;
+  height: 16px;
 }
 
 .vs {
-  justify-self: center;
-  font-family: var(--font-display);
+  font-family: var(--font-pixel);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--bg);
-  background: var(--pitch);
-  border-radius: 999px;
-  padding: 4px 14px 5px;
+  color: var(--panel);
+  background: var(--ink);
+  padding: 4px 10px;
 }
 
 .combobox {
@@ -115,40 +227,39 @@ body {
 .filter {
   width: 100%;
   min-height: 48px;
-  padding: 10px 14px;
+  padding: 10px 12px;
   font-size: 17px;
   font-family: var(--font-body);
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 0;
   outline: none;
+  -webkit-appearance: none;
 }
 
 .combobox input:focus-visible,
 .filter:focus-visible {
-  border-color: var(--pitch);
-  box-shadow: 0 0 0 3px #5be38926;
+  box-shadow: inset 0 0 0 3px var(--pitch-green);
 }
 
 .combobox input::placeholder,
 .filter::placeholder {
-  color: var(--muted);
+  color: var(--ink-soft);
 }
 
 .suggestions {
   position: absolute;
   z-index: 10;
-  top: calc(100% + 6px);
+  top: calc(100% + 5px);
   left: 0;
   right: 0;
   max-height: 320px;
   overflow-y: auto;
   list-style: none;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px #00000088;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow);
 }
 
 .suggestions li {
@@ -156,61 +267,71 @@ body {
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 11px 12px;
   min-height: 44px;
   cursor: pointer;
+  border-bottom: 1px solid #e4e8d8;
+}
+
+.suggestions li:last-child {
+  border-bottom: none;
 }
 
 .suggestions li.active {
-  background: var(--pitch-dim);
+  background: var(--pitch-green);
+  color: var(--panel);
 }
 
 .suggestion-name {
-  font-weight: 550;
+  font-weight: 650;
 }
 
 .suggestion-meta {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: 12px;
   white-space: nowrap;
 }
 
-/* selected club — big fixture name */
+.suggestions li.active .suggestion-meta {
+  color: #d8f0dc;
+}
+
+/* selected club */
 .club-chip {
   width: 100%;
   min-height: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 8px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--pitch-dim);
-  border-radius: 10px;
-  color: var(--text);
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  color: var(--ink);
   cursor: pointer;
   font-family: inherit;
 }
 
 .club-chip-name {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 28px;
-  line-height: 1.05;
+  font-weight: 800;
+  font-size: 21px;
+  line-height: 1.1;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-align: center;
 }
 
 .club-chip-meta {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--ink-soft);
 }
 
 /* ---- results ---- */
 .verdict {
-  margin-top: 20px;
+  margin-top: 18px;
 }
 
 .results-bar {
@@ -221,60 +342,71 @@ body {
 }
 
 .results-count {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--pitch);
+  align-self: flex-start;
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--panel);
+  background: var(--pitch-green);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow);
+  padding: 6px 10px;
 }
 
 .results {
   list-style: none;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow);
+  background: var(--panel);
 }
 
 .result-row {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 14px;
-  background: var(--surface);
+  padding: 11px 13px;
+  border-bottom: 1px solid #e4e8d8;
+}
+
+.result-row:last-child {
+  border-bottom: none;
 }
 
 .result-row:nth-child(even) {
-  background: var(--surface-2);
+  background: var(--panel-alt);
 }
 
 .result-name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 16px;
 }
 
 .result-birth {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-weight: 400;
   font-size: 13px;
 }
 
 .result-stints {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .stint-sep {
-  color: var(--pitch-dim);
+  color: var(--pitch-green);
+  font-weight: 600;
 }
 
 .filter-miss {
-  padding: 16px;
-  border: 1px solid var(--card-yellow);
-  border-radius: 12px;
-  color: var(--card-yellow);
-  background: #ffc73310;
+  padding: 14px;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow);
+  background: var(--card-yellow);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 /* no shared player — the referee's card */
@@ -284,43 +416,42 @@ body {
   align-items: center;
   gap: 8px;
   text-align: center;
-  padding: 28px 20px;
-  background: #ffc7330d;
-  border: 1px solid #ffc73355;
-  border-radius: 14px;
+  padding: 22px 18px;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--shadow);
 }
 
 .card-icon {
-  width: 34px;
-  height: 46px;
-  border-radius: 5px;
+  width: 32px;
+  height: 44px;
   background: var(--card-yellow);
-  box-shadow: 0 6px 18px #ffc73344;
+  border: 3px solid var(--ink);
   transform: rotate(6deg);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .no-match strong {
-  font-family: var(--font-display);
+  font-family: var(--font-pixel);
   font-weight: 700;
-  font-size: 24px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--card-yellow);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
 }
 
 .no-match p {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 14px;
   max-width: 40ch;
+  line-height: 1.5;
 }
 
 /* near-miss: matched only through a reserve/youth side */
 .near-miss {
   width: 100%;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px dashed #ffc73340;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 3px dashed #d8dcc8;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -328,12 +459,10 @@ body {
 }
 
 .near-miss-title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 15px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-soft);
 }
 
 .near-miss ul {
@@ -347,51 +476,59 @@ body {
   display: flex;
   flex-direction: column;
   font-size: 14px;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .near-miss li strong {
-  color: var(--card-yellow);
+  color: var(--pitch-green);
 }
 
 .near-miss-names {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: 12px;
 }
 
 .near-miss-rule {
-  color: var(--muted);
+  color: var(--ink-soft);
   font-size: 12px;
   font-style: italic;
 }
 
 /* ---- misc ---- */
 .hint {
-  margin-top: 20px;
+  margin-top: 18px;
   text-align: center;
-  color: var(--muted);
+  color: var(--ink);
   font-size: 14px;
   line-height: 1.5;
+  background: #ffffffd9;
+  border: 2px solid var(--ink);
+  padding: 10px 12px;
 }
 
 .error-card {
-  margin-top: 20px;
-  padding: 14px 16px;
-  border: 1px solid #e5484d88;
-  border-radius: 12px;
-  background: #e5484d14;
-  color: #ffb3b5;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  background: #ff8f6b;
+  color: var(--ink);
   font-size: 14px;
+  font-weight: 600;
 }
 
+/* sits on grass, so it needs its own backing to stay readable */
 .colophon {
   margin-top: auto;
-  padding-top: 40px;
+  margin-inline: auto;
+  max-width: 46ch;
+  padding: 8px 12px;
   text-align: center;
-  color: var(--muted);
+  color: var(--ink);
+  background: #ffffffd0;
+  border: 2px solid #ffffff;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 @media (min-width: 480px) {
@@ -403,14 +540,51 @@ body {
 
   .filter {
     max-width: 220px;
-    min-height: 40px;
+    min-height: 42px;
     font-size: 15px;
+  }
+
+  .wordmark {
+    font-size: 30px;
+  }
+
+  .wordmark span {
+    width: 58px;
+    height: 64px;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .ball {
+    animation: bob 1.6s ease-in-out infinite;
+  }
+
+  @keyframes bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .cloud-1 {
+    animation: drift 90s linear infinite;
+  }
+
+  .cloud-2 {
+    animation: drift 140s linear infinite;
+  }
+
+  @keyframes drift {
+    to {
+      transform: translateX(120vw);
+    }
+  }
+
   .suggestions {
-    animation: pop 0.12s ease-out;
+    animation: pop 0.1s steps(2, end);
   }
 
   @keyframes pop {
