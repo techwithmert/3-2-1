@@ -9,8 +9,9 @@
     "preview": "vite preview",
     "data:clubs": "tsx scripts/fetch-clubs.ts",
     "data:players": "tsx scripts/fetch-memberships.ts",
+    "data:labels": "tsx scripts/fetch-player-labels.ts",
     "data:build": "tsx scripts/build-data.ts",
-    "data:all": "npm run data:clubs && npm run data:players && npm run data:build"
+    "data:all": "npm run data:clubs && npm run data:players && npm run data:labels && npm run data:build"
   },
   "dependencies": {
     "react": "^19.1.0",

@@ -7,11 +7,11 @@
 //
 // Output: .cache/clubs.ndjson
 import { sparql, qid } from './lib/wdqs.ts'
+import { fetchLabels } from './lib/labels.ts'
 import { ensureCacheDir, appendNdjson, cachePath } from './lib/cache.ts'
 import fs from 'node:fs'
 
 const FOOTBALL_OCCUPATIONS = ['Q937857', 'Q628099', 'Q23905045'] // footballer, manager, futsal player
-const ASSOCIATION_FOOTBALL = 'Q2736'
 const NATIONAL_TEAM = 'Q6979593'
 
 // Raw P31 QIDs are kept as-is so Stage C can classify without a re-crawl.
@@ -28,14 +28,18 @@ async function main() {
 
   console.log('Enumerating clubs from footballers’ P54 statements...')
   const bindings = await sparql(`
-    SELECT ?club ?label ?mul ?cc ?parent ?type WHERE {
+    SELECT ?club ?cc ?parent ?type WHERE {
       ?p wdt:P31 wd:Q5 ; wdt:P106 ?occ ; p:P54 ?st .
       ?st ps:P54 ?club .
       VALUES ?occ { ${FOOTBALL_OCCUPATIONS.map((q) => `wd:${q}`).join(' ')} }
       FILTER NOT EXISTS { ?club wdt:P31/wdt:P279* wd:${NATIONAL_TEAM} }
-      FILTER NOT EXISTS { ?club wdt:P641 ?sport . FILTER(?sport != wd:${ASSOCIATION_FOOTBALL}) }
-      OPTIONAL { ?club rdfs:label ?label . FILTER(LANG(?label) = "en") }
-      OPTIONAL { ?club rdfs:label ?mul . FILTER(LANG(?mul) = "mul") }
+      # No P641 (sport) filter on purpose. It looks like the obvious way to drop
+      # the odd cricket/basketball side that a footballer also turned out for,
+      # but the values are too inconsistent to test against: Greek clubs use
+      # "men's association football" (a subclass of Q2736), Mohun Bagan uses the
+      # vague "team sport", and multisport clubs list all 16 sports they run.
+      # Every version of the filter deleted real clubs, so we let the P54 link
+      # from a footballer be the only test and accept a little cross-sport noise.
       OPTIONAL { ?club wdt:P17/wdt:P297 ?cc }
       OPTIONAL { ?club wdt:P361 ?parent }
       OPTIONAL { ?club wdt:P31 ?type }
@@ -50,22 +54,19 @@ async function main() {
     const id = qid(b.club!.value)
     let club = clubs.get(id)
     if (!club) {
-      club = {
-        qid: id,
-        label: b.label?.value ?? b.mul?.value ?? '',
-        country: b.cc?.value ?? null,
-        parent: null,
-        types: [],
-      }
+      club = { qid: id, label: '', country: b.cc?.value ?? null, parent: null, types: [] }
       clubs.set(id, club)
       types.set(id, new Set())
     }
-    if (club.label === '') club.label = b.label?.value ?? b.mul?.value ?? ''
     if (club.country === null && b.cc?.value) club.country = b.cc.value
     if (b.parent?.value) club.parent = qid(b.parent.value)
     if (b.type?.value) types.get(id)!.add(qid(b.type.value))
   }
   for (const [id, club] of clubs) club.types = [...types.get(id)!]
+
+  console.log(`Fetching labels for ${clubs.size} clubs...`)
+  const labels = await fetchLabels([...clubs.keys()])
+  for (const [id, club] of clubs) club.label = labels.get(id) ?? ''
 
   fs.rmSync(cachePath('clubs.ndjson'), { force: true })
   appendNdjson('clubs.ndjson', [...clubs.values()])

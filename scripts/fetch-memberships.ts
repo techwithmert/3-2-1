@@ -14,7 +14,6 @@ const LOAN = 'Q2914547' // P1642 "acquisition transaction" = loan
 export interface MembershipRow {
   club: string
   player: string
-  name: string
   start: number | null
   end: number | null
   birth: number | null
@@ -23,10 +22,10 @@ export interface MembershipRow {
 
 async function fetchBatch(clubIds: string[]): Promise<MembershipRow[]> {
   try {
-    // plain rdfs:label rather than SERVICE wikibase:label — QLever has no label
-    // service, and en->mul works on both endpoints
+    // no labels here — fetch-player-labels.ts does those in one pass with a
+    // proper language fallback
     const bindings = await sparql(`
-      SELECT ?club ?player ?len ?lmul ?start ?end ?birth ?acq WHERE {
+      SELECT ?club ?player ?start ?end ?birth ?acq WHERE {
         VALUES ?club { ${clubIds.map((id) => `wd:${id}`).join(' ')} }
         ?player p:P54 ?st .
         ?st ps:P54 ?club .
@@ -36,14 +35,11 @@ async function fetchBatch(clubIds: string[]): Promise<MembershipRow[]> {
         OPTIONAL { ?st pq:P582 ?end }
         OPTIONAL { ?st pq:P1642 ?acq }
         OPTIONAL { ?player wdt:P569 ?birth }
-        OPTIONAL { ?player rdfs:label ?len . FILTER(LANG(?len) = "en") }
-        OPTIONAL { ?player rdfs:label ?lmul . FILTER(LANG(?lmul) = "mul") }
       }
     `)
     return bindings.map((b) => ({
       club: qid(b.club!.value),
       player: qid(b.player!.value),
-      name: b.len?.value ?? b.lmul?.value ?? '',
       start: year(b.start?.value),
       end: year(b.end?.value),
       birth: year(b.birth?.value),

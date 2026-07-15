@@ -10,10 +10,12 @@ import type { MembershipRow } from './fetch-memberships.ts'
 
 const OUT_DIR = path.join(import.meta.dirname, '..', 'public', 'data')
 
-// "Beşiktaş J.K. (Football)" → "Beşiktaş J.K." — drop pure sport-disambiguation
-// suffixes, but keep meaningful ones like "(women)".
+// "Beşiktaş J.K. (Football)" → "Beşiktaş J.K.", "SS Lazio (multisports club)" →
+// "SS Lazio". Drops Wikidata's item-disambiguation suffixes (which only exist to
+// separate the football item from its parent club) but keeps meaningful ones
+// like "(women)".
 function cleanLabel(label: string): string {
-  return label.replace(/\s*\((association )?football\)$/i, '')
+  return label.replace(/\s*\(((association )?football|(multi)?sports? club)\)$/i, '')
 }
 
 interface PlayerEntry {
@@ -73,6 +75,12 @@ function main() {
     process.exit(1)
   }
 
+  const playerLabels = new Map(readNdjson<[string, string]>('player-labels.ndjson'))
+  if (playerLabels.size === 0) {
+    console.error('Missing player-labels.ndjson — run: npm run data:labels')
+    process.exit(1)
+  }
+
   const clubs = new Map<string, ClubRow>()
   for (const row of clubRows) if (!clubs.has(row.qid)) clubs.set(row.qid, row)
 
@@ -82,7 +90,8 @@ function main() {
   // club -> player -> merged entry (multiple stints collapse to min-start/max-end)
   const perClub = new Map<string, Map<string, PlayerEntry>>()
   for (const m of memberships) {
-    if (m.name === '' || /^Q\d+$/.test(m.name)) continue // no usable label
+    const name = playerLabels.get(m.player)
+    if (!name) continue // no label in any language we asked for
     const clubQid = canonical(m.club)
     if (!clubs.has(clubQid)) continue
     let players = perClub.get(clubQid)
@@ -90,7 +99,7 @@ function main() {
     const existing = players.get(m.player)
     if (!existing) {
       players.set(m.player, {
-        name: m.name,
+        name,
         start: m.start,
         end: m.end,
         birth: m.birth,
